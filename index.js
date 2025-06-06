@@ -76,27 +76,22 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Base filter using correct field 'userid'
     const filter = { userid: userId };
 
-    // Date filtering
     if (from || to) {
       filter.date = {};
       if (from) filter.date.$gte = new Date(from);
       if (to) filter.date.$lte = new Date(to);
     }
 
-    // Fetch exercises with filter and limit
-    const exercises = await Exercise.find(filter).limit(parseInt(limit) || 500);
+    const exercises = await Exercise.find(filter).limit(parseInt(limit) || 0);
 
-    // Format the log
     const log = exercises.map(ex => ({
       description: ex.description,
       duration: ex.duration,
-      date: ex.date.toDateString()
+      date: ex.date.toDateString() // <-- key fix
     }));
 
-    // Final response
     res.json({
       _id: user._id,
       username: user.username,
@@ -108,6 +103,7 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 const listener = app.listen(process.env.PORT || 3000, () => {
