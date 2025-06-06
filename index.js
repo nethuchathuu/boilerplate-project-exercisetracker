@@ -89,14 +89,15 @@ app.get('/api/users/:_id/logs', async (req, res) => {
     const log = exercises.map(ex => ({
       description: ex.description,
       duration: ex.duration,
-      date: ex.date.toDateString() // <-- key fix
+      date: new Date(ex.date).toDateString()
+
     }));
 
     res.json({
       _id: user._id,
       username: user.username,
       count: log.length,
-      log: log
+      log
     });
 
   } catch (err) {
