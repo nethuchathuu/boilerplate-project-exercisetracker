@@ -16,11 +16,12 @@ const userSchema = new mongoose.Schema({
 });
 
 const exerciseSchema = new mongoose.Schema({
-  userid: {type: String, required: true},
-  description: {type: String, required: true},
-  duration: {type: Number, required: true},
-  date: {type: Date, required: true}
+  userid: { type: String, required: true },
+  description: { type: String, required: true },
+  duration: { type: Number, required: true },
+  date: { type: Date, required: true }
 });
+
 
 const User = mongoose.model('User', userSchema);
 const Exercise = mongoose.model('Exercise', exerciseSchema);
@@ -37,57 +38,77 @@ app.get('/api/users', async(req, res) => {
   res.json(users); 
 });
 
-app.post('/api/users/:_id/exercises', express.urlencoded({extended: false}), async(req, res) => {
+app.post('/api/users/:_id/exercises', express.urlencoded({ extended: false }), async (req, res) => {
   const userId = req.params._id;
-  const {description, duration, date} = req.body;
-  const user = await User.findById(userId);
+  const { description, duration, date } = req.body;
 
-  if(!user) return res.json({ error: 'User not found' });
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-  const exercise = new Exercise({
-  userid: userId,
-  description,
-  duration: parseInt(duration),
-  date: date ? new Date(date) : new Date()
-});
+    const exercise = new Exercise({
+      userid: userId,
+      description,
+      duration: parseInt(duration),
+      date: date ? new Date(date) : new Date()
+    });
 
-  const savedExercise = await exercise.save();
-  res.json({
-    _id: user._id,
-    username: user.username,
-    description: savedExercise.description,
-    duration: savedExercise.duration,
-    date: savedExercise.date.toDateString()
-  });
-});
+    const savedExercise = await exercise.save();
 
-app.get('/api/users/:_id/logs', async(req, res) => {
-  const {from, to, limit} = req.query;
-  const userId = req.params._id;
-
-  const user = await User.findById(userId);
-  if(!user) return res.json({error: 'User not found'});
-
-  let filter = {userId};
-
-  if(from || to){
-    filter.date = {};
-    if(from) filter.date.$gte = new Date(from);
-    if(to) filter.date.$lte = new Date(to);
+    res.json({
+      _id: user._id,
+      username: user.username,
+      description: savedExercise.description,
+      duration: savedExercise.duration,
+      date: savedExercise.date.toDateString()
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
-  const exercises = await Exercise.find(filter).limit(+limit || 500);
-
-  res.json({
-    _id: user._id,
-    username: user.username,
-    count: exercises.length,
-    log: exercises.map(e => ({
-      description: e.description,
-      duration: e.duration,
-      date: e.date.toDateString()
-    }))
-  });
 });
+
+
+app.get('/api/users/:_id/logs', async (req, res) => {
+  const { from, to, limit } = req.query;
+  const userId = req.params._id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Base filter using correct field 'userid'
+    const filter = { userid: userId };
+
+    // Date filtering
+    if (from || to) {
+      filter.date = {};
+      if (from) filter.date.$gte = new Date(from);
+      if (to) filter.date.$lte = new Date(to);
+    }
+
+    // Fetch exercises with filter and limit
+    const exercises = await Exercise.find(filter).limit(parseInt(limit) || 500);
+
+    // Format the log
+    const log = exercises.map(ex => ({
+      description: ex.description,
+      duration: ex.duration,
+      date: ex.date.toDateString()
+    }));
+
+    // Final response
+    res.json({
+      _id: user._id,
+      username: user.username,
+      count: log.length,
+      log: log
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log('Your app is listening on port ' + listener.address().port)
